@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
-import { auth } from "../firebase";
+import { useRouter } from "expo-router";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { auth } from "../firebase";
 
 export default function LoginScreen() {
   const router = useRouter();

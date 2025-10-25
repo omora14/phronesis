@@ -33,7 +33,7 @@ export default function Splash() {
 
   const progressBarWidth = progressAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0%", "60%"], // adjust as needed
+    outputRange: ["0%", "60%"], 
   });
 
   return (
