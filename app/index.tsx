@@ -1,16 +1,17 @@
 import { useRouter } from "expo-router";
-
-import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-
+import { useEffect, useRef, useState } from "react";
+import { Animated, Image, StyleSheet, Text, View } from "react-native";
 
 export default function IndexScreen() {
   const router = useRouter();
+  const [hasNavigated, setHasNavigated] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
  
   useEffect(() => {
+    if (hasNavigated) return;
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -29,9 +30,12 @@ export default function IndexScreen() {
         useNativeDriver: false,
       }),
     ]).start(() => {
-      setTimeout(() => router.replace("/carousel" as any), 300);
+      setTimeout(() => {
+        setHasNavigated(true);
+        router.replace("/carousel" as any);
+      }, 300);
     });
-  }, []);
+  }, [hasNavigated]);
  
   const progressBarWidth = progressAnim.interpolate({
     inputRange: [0, 1],

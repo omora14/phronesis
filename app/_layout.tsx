@@ -44,11 +44,10 @@ export default function RootLayout() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="splash"
+        name="recordings"
         options={{ headerShown: false }}
       />
     </Stack>
-
   );
 }
  
