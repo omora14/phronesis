@@ -3,13 +3,13 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD0EiBLuigjrsNXH0V7XGnwd0F6t9wUvnA",
-  authDomain: "phronesis-ae1e7.firebaseapp.com",
-  projectId: "phronesis-ae1e7",
-  storageBucket: "phronesis-ae1e7.firebasestorage.app",
-  messagingSenderId: "410759864859",
-  appId: "1:410759864859:web:5e11d0ea06d37a6de08ebe",
-  measurementId: "G-Q0Q621C18S",
+  apiKey: "AIzaSyAtmCSA_f5tV_Zu_gIO1IX1HEoXpehhZ7g",
+  authDomain: "phronesis-e5608.firebaseapp.com",
+  projectId: "phronesis-e5608",
+  storageBucket: "phronesis-e5608.firebasestorage.app",
+  messagingSenderId: "645433004337",
+  appId: "1:645433004337:web:2c21ddacbcabbd30b22010",
+  measurementId: "G-5NHJX34KR8"
 };
 
 const app = initializeApp(firebaseConfig);

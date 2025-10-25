@@ -9,22 +9,11 @@ export default function RootLayout() {
         headerTitleStyle: { fontWeight: "600" },
       }}
     >
-      <Stack.Screen
-        name="login"
-        options={{ title: "Phronesis Login" }}
-      />
-      <Stack.Screen
-        name="profileSetup"
-        options={{ title: "Set Up Profile" }}
-      />
-      <Stack.Screen
-        name="dashboard"
-        options={{ title: "Your Week" }}
-      />
-      <Stack.Screen
-        name="record"
-        options={{ title: "Record Today" }}
-      />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ title: "Phronesis Login" }} />
+      <Stack.Screen name="profileSetup" options={{ title: "Set Up Profile" }} />
+      <Stack.Screen name="dashboard" options={{ title: "Your Week" }} />
+      <Stack.Screen name="record" options={{ title: "Record Today" }} />
     </Stack>
   );
 }
