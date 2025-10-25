@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-
+ 
 export default function RootLayout() {
   return (
     <Stack
@@ -9,26 +9,44 @@ export default function RootLayout() {
         headerTitleStyle: { fontWeight: "600" },
       }}
     >
+      {/* Splash Screen - No Header */}
+      <Stack.Screen
+        name="index"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="carousel"
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="login"
-        options={{ title: "Phronesis Login" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="profileSetup"
-        options={{ title: "Set Up Profile" }}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="onboarding"
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="dashboard"
-        options={{ title: "Your Week" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="record"
-        options={{ title: "Record Today" }}
+        options={{ headerShown: false }}
       />
-            <Stack.Screen
+      <Stack.Screen
+        name="profile"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="splash"
-        options={{ title: "Splash" }}
+        options={{ headerShown: false }}
       />
     </Stack>
   );
 }
+ 
