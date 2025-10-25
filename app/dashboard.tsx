@@ -8,7 +8,6 @@ export default function DashboardScreen() {
   const params = useLocalSearchParams<{ name?: string }>();
   const displayName = params.name || "friend";
 
-  // mock mood data
   const data = {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     datasets: [

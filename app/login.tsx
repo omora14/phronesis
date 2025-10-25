@@ -10,28 +10,33 @@ import { auth } from "../firebase";
 export default function LoginScreen() {
   const router = useRouter();
 
+  // "login" = returning user, "signup" = create new account
   const [mode, setMode] = useState<"login" | "signup">("login");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   async function handleSubmit() {
     setError("");
+
     try {
       let userCred;
       if (mode === "signup") {
+        // create new Firebase user
         userCred = await createUserWithEmailAndPassword(auth, email, password);
       } else {
+        // sign in existing user
         userCred = await signInWithEmailAndPassword(auth, email, password);
       }
 
-      // after auth success → go to profile setup and pass uid
+      // userCred.user.uid is the Firebase UID
       router.replace({
         pathname: "/profileSetup",
         params: { uid: userCred.user.uid },
       });
     } catch (e: any) {
-      console.log(e);
+      console.log("AUTH ERROR", e);
       setError(e.message);
     }
   }
@@ -41,6 +46,7 @@ export default function LoginScreen() {
       <Text style={{ fontSize: 28, fontWeight: "600", textAlign: "center" }}>
         Phronesis
       </Text>
+
       <Text style={{ textAlign: "center", color: "#666", marginBottom: 12 }}>
         Sign in to start tracking how you feel.
       </Text>
@@ -75,7 +81,14 @@ export default function LoginScreen() {
       />
 
       {error ? (
-        <Text style={{ color: "red", fontSize: 12, textAlign: "center" }}>
+        <Text
+          style={{
+            color: "red",
+            fontSize: 12,
+            textAlign: "center",
+            marginBottom: 8,
+          }}
+        >
           {error}
         </Text>
       ) : null}
@@ -96,9 +109,7 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={() =>
-          setMode(mode === "signup" ? "login" : "signup")
-        }
+        onPress={() => setMode(mode === "signup" ? "login" : "signup")}
       >
         <Text style={{ textAlign: "center", marginTop: 16 }}>
           {mode === "signup"
