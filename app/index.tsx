@@ -1,12 +1,28 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { View, ActivityIndicator, StyleSheet, Text } from "react-native";
+import { useRouter } from "expo-router";
 
-export default function Page() {
+export default function IndexScreen() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setReady(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (ready) {
+      router.replace("/login");
+    }
+  }, [ready, router]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.main}>
-        <Text style={styles.title}>Hello World</Text>
-        <Text style={styles.subtitle}>This is the first page of your app.</Text>
-      </View>
+      <ActivityIndicator size="large" color="#5A8DEE" />
+      <Text style={styles.subtitle}>Loading, please wait...</Text>
     </View>
   );
 }
@@ -14,21 +30,13 @@ export default function Page() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    padding: 24,
-  },
-  main: {
-    flex: 1,
     justifyContent: "center",
-    maxWidth: 960,
-    marginHorizontal: "auto",
-  },
-  title: {
-    fontSize: 64,
-    fontWeight: "bold",
+    alignItems: "center",
+    backgroundColor: "#fdf8eb",
   },
   subtitle: {
-    fontSize: 36,
+    marginTop: 20,
+    fontSize: 18,
     color: "#38434D",
   },
 });
