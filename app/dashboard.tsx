@@ -1,7 +1,7 @@
-import React from "react";
-import { View, Text, TouchableOpacity, Dimensions } from "react-native";
-import { LineChart } from "react-native-chart-kit";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import React from "react";
+import { Dimensions, Text, TouchableOpacity, View } from "react-native";
+import { LineChart } from "react-native-chart-kit";
 
 export default function DashboardScreen() {
   const router = useRouter();

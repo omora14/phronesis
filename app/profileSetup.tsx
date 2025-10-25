@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
-import { db } from "../firebase";
-import { doc, setDoc } from "firebase/firestore";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { doc, setDoc } from "firebase/firestore";
+import React, { useState } from "react";
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { db } from "../firebase";
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
