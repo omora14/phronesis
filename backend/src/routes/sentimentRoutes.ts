@@ -1,21 +1,41 @@
 import axios from "axios";
 import express, { Request, Response } from "express";
 import fs from "fs";
+import multer from "multer";
 import path from "path";
-import { saveSentimentData } from "../services/analysisService"; // your Firebase service
+import { saveSentimentData } from "../services/analysisService"; // firebase service
 
 const router = express.Router();
 
-router.post("/", async (req: Request, res: Response) => {
-  try {
-    // use a local audio file for testing
-    const filePath = path.join(__dirname, "../../assets/harvard.wav");
-    const audioStream = fs.createReadStream(filePath);
+// multer 
+const storage = multer.diskStorage({
+  destination: function (_req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, `recorded-${Date.now()}${ext}`);
+  },
+});
+const upload = multer({ storage });
 
-    // upload audio to AssemblyAI
-    const uploadResponse = await axios.post(
+// POST /api/sentiment
+router.post("/", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const uid = req.body.uid || "hackathon-user";
+
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // uploaded file
+    const fileStream = fs.createReadStream(file.path);
+
+    // Upload to AssemblyAI
+    const uploadResp = await axios.post(
       "https://api.assemblyai.com/v2/upload",
-      audioStream,
+      fileStream,
       {
         headers: {
           authorization: process.env.ASSEMBLY_API_KEY!,
@@ -24,10 +44,10 @@ router.post("/", async (req: Request, res: Response) => {
       }
     );
 
-    const uploadUrl = uploadResponse.data.upload_url;
+    const uploadUrl = uploadResp.data.upload_url;
 
-    // start transcription + sentiment analysis
-    const transcriptResponse = await axios.post(
+    // transcription + sentiment
+    const transcriptResp = await axios.post(
       "https://api.assemblyai.com/v2/transcript",
       { audio_url: uploadUrl, sentiment_analysis: true },
       {
@@ -38,9 +58,9 @@ router.post("/", async (req: Request, res: Response) => {
       }
     );
 
-    const transcriptId = transcriptResponse.data.id;
+    const transcriptId = transcriptResp.data.id;
 
-    // 3️poll until transcription is completed
+    // poll until transcription completes
     let transcriptData;
     while (true) {
       const poll = await axios.get(
@@ -52,10 +72,10 @@ router.post("/", async (req: Request, res: Response) => {
       if (transcriptData.status === "completed") break;
       if (transcriptData.status === "error") throw new Error(transcriptData.error);
 
-      // wait 5 seconds before polling again
       await new Promise((r) => setTimeout(r, 5000));
     }
 
+    // compute sentiment summary
     const sentiments = transcriptData.sentiment_analysis_results.map(
       (s: { sentiment: string }) => s.sentiment
     );
@@ -75,15 +95,11 @@ router.post("/", async (req: Request, res: Response) => {
       })
     );
 
-const placeholderUserId = 123; // real user ID later
-await saveSentimentData(
-  placeholderUserId,
-  transcriptData.text,
-  total
-);
+    // save to Firebase
+    await saveSentimentData(uid, transcriptData.text, total);
 
+    fs.unlinkSync(file.path);
 
-    // respond with transcript and sentiment summary
     res.json({
       transcript: transcriptData.text,
       sentimentSummary: sentimentScores,
