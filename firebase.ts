@@ -1,9 +1,10 @@
+import Constants from "expo-constants";
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
  
 const firebaseConfig = {
-  apiKey: "AIzaSyAtmCSA_f5tV_Zu_gIO1IX1HEoXpehhZ7g",
+  apiKey: Constants.expoConfig?.extra?.firebaseApiKey || process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: "phronesis-e5608.firebaseapp.com",
   projectId: "phronesis-e5608",
   storageBucket: "phronesis-e5608.firebasestorage.app",
@@ -11,6 +12,8 @@ const firebaseConfig = {
   appId: "1:645433004337:web:2c21ddacbcabbd30b22010",
   measurementId: "G-5NHJX34KR8"
 };
+
+console.log("Firebase config:", firebaseConfig); 
  
 const app = initializeApp(firebaseConfig);
 
