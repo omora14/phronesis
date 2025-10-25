@@ -24,7 +24,7 @@ export default function Splash() {
       Animated.timing(progressAnim, {
         toValue: 1,
         duration: 2200,
-        useNativeDriver: false, // progress width can't use native driver
+        useNativeDriver: false, // rogress width can't use native driver
       }),
     ]).start(() => {
       setTimeout(() => router.replace("/carousel"), 500);
@@ -33,7 +33,7 @@ export default function Splash() {
 
   const progressBarWidth = progressAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0%", "60%"], // adjust as needed
+    outputRange: ["0%", "60%"], 
   });
 
   return (
