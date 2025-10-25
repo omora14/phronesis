@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
-import { useEffect, useRef } from "react";
-import { Animated, Image, StyleSheet, Text, View } from "react-native";
- 
+
+import { useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+
+
 export default function IndexScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;

@@ -47,7 +47,9 @@ export default function Splash() {
         {/* Use Image for PNG */}
         <Image
           source={require("../assets/images/logo.png")}
+
           style={{ width: 200, height: 200 }}
+
           resizeMode="contain"
         />
       </Animated.View>
@@ -59,7 +61,9 @@ export default function Splash() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+
     backgroundColor: "#faefde",
+
     alignItems: "center",
     justifyContent: "center",
   },
