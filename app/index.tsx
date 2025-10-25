@@ -1,21 +1,18 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 
 export default function IndexScreen() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
-  // 1. Wait one tick so RootLayout mounts before navigation.
   useEffect(() => {
     const timer = setTimeout(() => {
       setReady(true);
     }, 0);
-
     return () => clearTimeout(timer);
   }, []);
 
-  // 2. After we're "ready", THEN navigate to /login
   useEffect(() => {
     if (ready) {
       router.replace("/login");
@@ -23,8 +20,23 @@ export default function IndexScreen() {
   }, [ready, router]);
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+    <View style={styles.container}>
       <ActivityIndicator size="large" color="#5A8DEE" />
+      <Text style={styles.subtitle}>Loading, please wait...</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fdf8eb",
+  },
+  subtitle: {
+    marginTop: 20,
+    fontSize: 18,
+    color: "#38434D",
+  },
+});
