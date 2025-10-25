@@ -3,11 +3,11 @@ import express, { Request, Response } from "express";
 import fs from "fs";
 import multer from "multer";
 import path from "path";
-import { saveSentimentData } from "../services/analysisService"; // your Firebase service
+import { saveSentimentData } from "../services/analysisService"; // firebase service
 
 const router = express.Router();
 
-// Multer setup
+// multer 
 const storage = multer.diskStorage({
   destination: function (_req, file, cb) {
     cb(null, "uploads/");
@@ -29,7 +29,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Read uploaded file
+    // uploaded file
     const fileStream = fs.createReadStream(file.path);
 
     // Upload to AssemblyAI
@@ -46,7 +46,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
     const uploadUrl = uploadResp.data.upload_url;
 
-    // Start transcription + sentiment
+    // transcription + sentiment
     const transcriptResp = await axios.post(
       "https://api.assemblyai.com/v2/transcript",
       { audio_url: uploadUrl, sentiment_analysis: true },
@@ -60,7 +60,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
     const transcriptId = transcriptResp.data.id;
 
-    // Poll until transcription completes
+    // poll until transcription completes
     let transcriptData;
     while (true) {
       const poll = await axios.get(
@@ -75,7 +75,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       await new Promise((r) => setTimeout(r, 5000));
     }
 
-    // Compute sentiment summary
+    // compute sentiment summary
     const sentiments = transcriptData.sentiment_analysis_results.map(
       (s: { sentiment: string }) => s.sentiment
     );
@@ -95,13 +95,11 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
       })
     );
 
-    // Save to Firebase
+    // save to Firebase
     await saveSentimentData(uid, transcriptData.text, total);
 
-    // Delete the uploaded file (optional)
     fs.unlinkSync(file.path);
 
-    // Respond with sentiment + transcript
     res.json({
       transcript: transcriptData.text,
       sentimentSummary: sentimentScores,
