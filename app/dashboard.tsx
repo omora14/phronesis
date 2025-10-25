@@ -1,7 +1,10 @@
+import { ResizeMode, Video } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { collection, onSnapshot, query, Timestamp, where } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import {
   Dimensions,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +13,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
+import { auth, db } from "../firebase";
  
 const { width } = Dimensions.get("window");
  
@@ -160,6 +164,48 @@ function UpArrowIcon() {
     </Svg>
   );
 }
+
+// Play Icon
+function PlayIcon() {
+  return (
+    <Svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.9)" />
+      <Path
+        d="M 10 8 L 16 12 L 10 16 Z"
+        fill="#1a1a1a"
+      />
+    </Svg>
+  );
+}
+
+// Close Icon
+function CloseIcon() {
+  return (
+    <Svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M 18 6 L 6 18 M 6 6 L 18 18"
+        stroke="#fff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+interface Recording {
+  id: string;
+  userId: string;
+  videoUri: string;
+  timestamp: Timestamp;
+  type: string;
+  sentiment?: any;
+  sentimentScore?: number;
+  emotion?: string;
+  valence?: number;
+  arousal?: number;
+  dominance?: number;
+}
  
 // Circular Progress Component
 function CircularProgress({
@@ -212,25 +258,170 @@ function CircularProgress({
 export default function DashboardScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ name?: string }>();
- 
-  // Dynamic data - can be updated from Firebase/API
-  const [todayScore, setTodayScore] = useState(88); // 0-100
-  const [scoreChange, setScoreChange] = useState(15); // Points from yesterday
+
+  // Dynamic data - calculated from recordings
+  const [todayScore, setTodayScore] = useState(0);
+  const [scoreChange, setScoreChange] = useState(0);
   const [recommendation, setRecommendation] = useState(
-    "Practice mindfulness to reduce stress. Try a-minute breathing exercise."
+    "Record your first video to get personalized recommendations!"
   );
-  const [topEmotion, setTopEmotion] = useState("Calm");
-  const [weeklyAverage, setWeeklyAverage] = useState(72);
- 
+  const [topEmotion, setTopEmotion] = useState("Unknown");
+  const [weeklyAverage, setWeeklyAverage] = useState(0);
+
   const [journalText, setJournalText] = useState("");
   const [activeTab, setActiveTab] = useState("home");
- 
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  // Calculate stats from recordings
+  const calculateStats = (recordingsData: Recording[]) => {
+    if (recordingsData.length === 0) {
+      setTodayScore(0);
+      setScoreChange(0);
+      setTopEmotion("Unknown");
+      setWeeklyAverage(0);
+      setRecommendation("Record your first video to get personalized recommendations!");
+      return;
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+
+    // Filter recordings with sentiment scores
+    const recordingsWithSentiment = recordingsData.filter(r => r.sentimentScore != null);
+
+    // Today's recordings
+    const todayRecordings = recordingsWithSentiment.filter(r => {
+      const recDate = r.timestamp.toDate();
+      return recDate >= todayStart;
+    });
+
+    // Yesterday's recordings
+    const yesterdayRecordings = recordingsWithSentiment.filter(r => {
+      const recDate = r.timestamp.toDate();
+      return recDate >= yesterdayStart && recDate < todayStart;
+    });
+
+    // This week's recordings
+    const weekRecordings = recordingsWithSentiment.filter(r => {
+      const recDate = r.timestamp.toDate();
+      return recDate >= weekStart;
+    });
+
+    // Calculate today's score (average of today's sentiment scores, normalized to 0-100)
+    const todayAvg = todayRecordings.length > 0
+      ? todayRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / todayRecordings.length
+      : 0;
+    const normalizedTodayScore = Math.round(Math.max(0, Math.min(100, (todayAvg + 1) * 50)));
+    setTodayScore(normalizedTodayScore);
+
+    // Calculate yesterday's score for comparison
+    const yesterdayAvg = yesterdayRecordings.length > 0
+      ? yesterdayRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / yesterdayRecordings.length
+      : 0;
+    const normalizedYesterdayScore = Math.round(Math.max(0, Math.min(100, (yesterdayAvg + 1) * 50)));
+    setScoreChange(normalizedTodayScore - normalizedYesterdayScore);
+
+    // Calculate weekly average
+    const weekAvg = weekRecordings.length > 0
+      ? weekRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / weekRecordings.length
+      : 0;
+    const normalizedWeekScore = Math.round(Math.max(0, Math.min(100, (weekAvg + 1) * 50)));
+    setWeeklyAverage(normalizedWeekScore);
+
+    // Find most common emotion this week
+    const emotions = weekRecordings
+      .map(r => r.emotion)
+      .filter(e => e != null);
+    
+    if (emotions.length > 0) {
+      const emotionCounts: { [key: string]: number } = {};
+      emotions.forEach(emotion => {
+        if (emotion) {
+          emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+        }
+      });
+      const topEmotionEntry = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0];
+      setTopEmotion(topEmotionEntry[0]);
+    } else {
+      setTopEmotion("Unknown");
+    }
+
+    // Generate recommendation based on score
+    if (normalizedTodayScore < 40) {
+      setRecommendation(
+        "Your emotional wellness could use some support. Try taking a short walk, practicing deep breathing, or reaching out to a friend."
+      );
+    } else if (normalizedTodayScore < 70) {
+      setRecommendation(
+        "You're doing okay! Consider doing something you enjoy today - listen to music, read a book, or practice gratitude."
+      );
+    } else {
+      setRecommendation(
+        "You're doing great! Keep up the positive momentum. Share your joy with others or try something new today."
+      );
+    }
+  };
+
+  // Fetch recordings from Firestore
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const q = query(
+      collection(db, "recordings"),
+      where("userId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const recordingsData: Recording[] = [];
+      snapshot.forEach((doc) => {
+        recordingsData.push({ id: doc.id, ...doc.data() } as Recording);
+      });
+      // Sort by timestamp in JavaScript instead of Firestore query
+      recordingsData.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+      setRecordings(recordingsData);
+      
+      // Calculate stats whenever recordings change
+      calculateStats(recordingsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleRecord = () => {
     router.push("/record" as any);
   };
- 
+
   const handleProfile = () => {
     router.push("/profile" as any);
+  };
+
+  const handlePlayVideo = (videoUri: string) => {
+    setSelectedVideo(videoUri);
+    setIsModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalVisible(false);
+    setSelectedVideo(null);
+  };
+
+  const formatDate = (timestamp: Timestamp) => {
+    const date = timestamp.toDate();
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
   };
  
   return (
@@ -248,11 +439,13 @@ export default function DashboardScreen() {
           <View style={styles.circleWrapper}>
             <CircularProgress score={todayScore} size={220} />
             <View style={styles.scoreOverlay}>
-              <UpArrowIcon />
+              {scoreChange > 0 && <UpArrowIcon />}
               <Text style={styles.scoreNumber}>{todayScore}</Text>
-              <Text style={styles.scoreChange}>
-                +{scoreChange} points from yesterday
-              </Text>
+              {scoreChange !== 0 && (
+                <Text style={styles.scoreChange}>
+                  {scoreChange > 0 ? '+' : ''}{scoreChange} points from yesterday
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -298,7 +491,65 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
+
+        {/* Recent Recordings */}
+        {recordings.length > 0 && (
+          <View style={styles.recordingsSection}>
+            <View style={styles.recordingsSectionHeader}>
+              <Text style={styles.recordingsTitle}>Recent Recordings</Text>
+              {recordings.length > 3 && (
+                <TouchableOpacity onPress={() => router.push("/recordings" as any)}>
+                  <Text style={styles.viewAllText}>View All</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {recordings.slice(0, 3).map((recording) => (
+              <TouchableOpacity
+                key={recording.id}
+                style={styles.recordingCard}
+                onPress={() => handlePlayVideo(recording.videoUri)}
+              >
+                <View style={styles.recordingContent}>
+                  <View style={styles.playIconContainer}>
+                    <PlayIcon />
+                  </View>
+                  <View style={styles.recordingInfo}>
+                    <Text style={styles.recordingType}>
+                      {recording.type === "audio" ? "Audio Recording" : "Video Recording"}
+                    </Text>
+                    <Text style={styles.recordingDate}>
+                      {formatDate(recording.timestamp)}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
+
+      {/* Video Modal */}
+      <Modal
+        visible={isModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={handleCloseModal}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleCloseModal}>
+            <CloseIcon />
+          </TouchableOpacity>
+          {selectedVideo && (
+            <Video
+              source={{ uri: selectedVideo }}
+              style={styles.videoPlayer}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+            />
+          )}
+        </View>
+      </Modal>
  
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -433,6 +684,85 @@ const styles = StyleSheet.create({
   snapshotText: {
     fontSize: 14,
     color: "#1a1a1a",
+  },
+  recordingsSection: {
+    marginHorizontal: 32,
+    marginBottom: 20,
+    marginTop: 16,
+  },
+  recordingsSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  recordingsTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  viewAllText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FF5252",
+  },
+  recordingCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  recordingContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  playIconContainer: {
+    width: 50,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    borderRadius: 25,
+  },
+  recordingInfo: {
+    flex: 1,
+  },
+  recordingType: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a1a1a",
+    marginBottom: 4,
+  },
+  recordingDate: {
+    fontSize: 14,
+    color: "#666",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 60,
+    right: 32,
+    zIndex: 10,
+    padding: 8,
+  },
+  videoPlayer: {
+    width: width - 40,
+    height: (width - 40) * (4 / 3),
+    borderRadius: 12,
   },
   bottomNav: {
     position: "absolute",
