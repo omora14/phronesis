@@ -24,7 +24,7 @@ export default function Splash() {
       Animated.timing(progressAnim, {
         toValue: 1,
         duration: 2200,
-        useNativeDriver: false, // progress width can't use native driver
+        useNativeDriver: false, // rogress width can't use native driver
       }),
     ]).start(() => {
       setTimeout(() => router.replace("/carousel"), 500);
