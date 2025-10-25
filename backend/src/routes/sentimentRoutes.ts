@@ -75,12 +75,12 @@ router.post("/", async (req: Request, res: Response) => {
       })
     );
 
-    const placeholderUserId = 123; // real user ID later
-    await saveSentimentData(
-      placeholderUserId,
-      transcriptData.text,
-      total // maybe another metric?
-    );
+const placeholderUserId = 123; // real user ID later
+await saveSentimentData(
+  placeholderUserId,
+  transcriptData.text,
+  total
+);
 
     // respond with transcript and sentiment summary
     res.json({
