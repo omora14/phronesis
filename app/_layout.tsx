@@ -25,6 +25,10 @@ export default function RootLayout() {
         name="record"
         options={{ title: "Record Today" }}
       />
+            <Stack.Screen
+        name="splash"
+        options={{ title: "Splash" }}
+      />
     </Stack>
   );
 }
