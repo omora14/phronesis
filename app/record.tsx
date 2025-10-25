@@ -132,25 +132,34 @@ export default function RecordScreen() {
         });
         const result = await res.json();
         console.log("Sentiment analysis result:", result);
+        console.log("🎭 Emotion from backend:", result.emotion);
+        console.log("📊 Sentiment score from backend:", result.sentimentScore);
         sentimentData = result;
       } catch (apiError) {
         console.warn("Backend upload failed, saving locally only:", apiError);
       }
 
       // Save metadata and sentiment data to Firestore
-      await addDoc(collection(db, "recordings"), {
+      const recordingData = {
         userId: user.uid,
         videoUri: uri,
         timestamp: new Date(),
         type: type,
         sentiment: sentimentData || null,
         // Store sentiment metrics if available
-        sentimentScore: sentimentData?.sentiment_score || null,
+        sentimentScore: sentimentData?.sentimentScore || null,
         emotion: sentimentData?.emotion || null,
         valence: sentimentData?.valence || null,
         arousal: sentimentData?.arousal || null,
         dominance: sentimentData?.dominance || null,
+      };
+      
+      console.log("💾 Saving to Firestore:", {
+        emotion: recordingData.emotion,
+        sentimentScore: recordingData.sentimentScore,
       });
+      
+      await addDoc(collection(db, "recordings"), recordingData);
 
       Alert.alert(
         "Success",

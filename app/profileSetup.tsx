@@ -9,9 +9,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import { auth, db } from "../firebase";
  
 export default function ProfileSetupScreen() {
@@ -55,11 +54,6 @@ export default function ProfileSetupScreen() {
  
   function handleLogin() {
     router.push("/login" as any);
-  }
- 
-  function handleGoogleSignUp() {
-    // TODO: Implement Google sign up
-    console.log("Google sign up");
   }
  
   return (
@@ -108,28 +102,7 @@ export default function ProfileSetupScreen() {
       <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
         <Text style={styles.signUpButtonText}>SIGN UP</Text>
       </TouchableOpacity>
- 
-      {/* OR Divider */}
-      <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.dividerLine} />
-      </View>
- 
-      {/* Social Sign Up Button */}
-      <TouchableOpacity
-        style={styles.socialButton}
-        onPress={handleGoogleSignUp}
-      >
-        <Svg width="20" height="20" viewBox="0 0 20 20" style={styles.socialIcon}>
-          <Path
-            d="M 19 10.2 C 19 9.5 18.9 8.8 18.8 8.2 H 10 V 12 H 15 C 14.8 13 14.2 14 13.3 14.6 V 17 H 16.3 C 17.9 15.6 19 13.1 19 10.2 Z M 10 19 C 12.4 19 14.4 18.2 16.3 17 L 13.3 14.6 C 12.5 15.1 11.4 15.5 10 15.5 C 7.7 15.5 5.7 14.1 5 12.1 H 2 V 14.6 C 3.9 18.3 6.7 19 10 19 Z M 5 12.1 C 4.5 10.7 4.5 9.3 5 7.9 V 5.4 H 2 C 0.3 8.8 0.3 13.2 2 16.6 L 5 14.1 V 12.1 Z M 10 4.5 C 11.5 4.5 12.9 5 14 6 L 16.6 3.4 C 14.4 1.4 12.4 1 10 1 C 6.7 1 3.9 2.7 2 5.4 L 5 7.9 C 5.7 5.9 7.7 4.5 10 4.5 Z"
-            fill="#faefde"
-          />
-        </Svg>
-        <Text style={styles.socialButtonText}>Continue with Google</Text>
-      </TouchableOpacity>
- 
+
       {/* Log In */}
       <View style={styles.loginContainer}>
         <Text style={styles.loginText}>Already have an account?</Text>

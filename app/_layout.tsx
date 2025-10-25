@@ -47,6 +47,10 @@ export default function RootLayout() {
         name="recordings"
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="notes"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

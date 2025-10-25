@@ -1,8 +1,9 @@
 import { ResizeMode, Video } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { collection, onSnapshot, query, Timestamp, where } from "firebase/firestore";
+import { addDoc, collection, onSnapshot, query, Timestamp, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Dimensions,
   Modal,
   ScrollView,
@@ -220,12 +221,18 @@ function CircularProgress({
   const circumference = radius * 2 * Math.PI;
   const progress = (score / 100) * circumference;
  
-  // Determine color based on score
+  // Determine color based on score (adjusted for EXTREME dramatic scaling)
   let color = "#4CAF50"; // Green
-  if (score < 40) {
-    color = "#FF5252"; // Red
-  } else if (score < 70) {
-    color = "#FFC107"; // Yellow
+  if (score < 35) {
+    color = "#FF5252"; // Red - Negative sentiment
+  } else if (score < 50) {
+    color = "#FF9800"; // Orange - Below neutral
+  } else if (score < 65) {
+    color = "#FFC107"; // Yellow - Slightly positive
+  } else if (score < 80) {
+    color = "#4CAF50"; // Green - Positive
+  } else {
+    color = "#2E7D32"; // Dark green - Very positive
   }
  
   return (
@@ -313,31 +320,65 @@ export default function DashboardScreen() {
       return recDate >= weekStart;
     });
 
-    // Calculate today's score (average of today's sentiment scores, normalized to 0-100)
+    // Calculate today's score with SUPER DRAMATIC scaling for demo
+    // Using CUBIC scaling to massively amplify differences
     const todayAvg = todayRecordings.length > 0
       ? todayRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / todayRecordings.length
       : 0;
-    const normalizedTodayScore = Math.round(Math.max(0, Math.min(100, (todayAvg + 1) * 50)));
+    
+    // EXTREME DRAMATIC SCALING - Small sentiment changes = HUGE score changes
+    let dramaticScore;
+    if (todayAvg >= 0) {
+      // Positive: Use cubic scaling to explode upward
+      // Even 0.3 sentiment will show as 70+ score
+      dramaticScore = 50 + (Math.pow(todayAvg, 0.4) * 48);
+    } else {
+      // Negative: Use cubic scaling to plummet downward
+      // Even -0.3 sentiment will show as 30- score
+      dramaticScore = 50 - (Math.pow(Math.abs(todayAvg), 0.4) * 48);
+    }
+    const normalizedTodayScore = Math.round(Math.max(2, Math.min(98, dramaticScore)));
     setTodayScore(normalizedTodayScore);
 
-    // Calculate yesterday's score for comparison
+    // Calculate yesterday's score with same dramatic scaling
     const yesterdayAvg = yesterdayRecordings.length > 0
       ? yesterdayRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / yesterdayRecordings.length
       : 0;
-    const normalizedYesterdayScore = Math.round(Math.max(0, Math.min(100, (yesterdayAvg + 1) * 50)));
+    
+    let dramaticYesterdayScore;
+    if (yesterdayAvg >= 0) {
+      dramaticYesterdayScore = 50 + (Math.pow(yesterdayAvg, 0.4) * 48);
+    } else {
+      dramaticYesterdayScore = 50 - (Math.pow(Math.abs(yesterdayAvg), 0.4) * 48);
+    }
+    const normalizedYesterdayScore = Math.round(Math.max(2, Math.min(98, dramaticYesterdayScore)));
     setScoreChange(normalizedTodayScore - normalizedYesterdayScore);
 
-    // Calculate weekly average
+    // Calculate weekly average with dramatic scaling
     const weekAvg = weekRecordings.length > 0
       ? weekRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / weekRecordings.length
       : 0;
-    const normalizedWeekScore = Math.round(Math.max(0, Math.min(100, (weekAvg + 1) * 50)));
+    
+    let dramaticWeekScore;
+    if (weekAvg >= 0) {
+      dramaticWeekScore = 50 + (Math.pow(weekAvg, 0.4) * 48);
+    } else {
+      dramaticWeekScore = 50 - (Math.pow(Math.abs(weekAvg), 0.4) * 48);
+    }
+    const normalizedWeekScore = Math.round(Math.max(2, Math.min(98, dramaticWeekScore)));
     setWeeklyAverage(normalizedWeekScore);
 
     // Find most common emotion this week
     const emotions = weekRecordings
       .map(r => r.emotion)
       .filter(e => e != null);
+    
+    console.log("📊 Week recordings with emotions:", weekRecordings.map(r => ({
+      emotion: r.emotion,
+      sentimentScore: r.sentimentScore,
+      timestamp: r.timestamp.toDate()
+    })));
+    console.log("📊 Filtered emotions:", emotions);
     
     if (emotions.length > 0) {
       const emotionCounts: { [key: string]: number } = {};
@@ -346,24 +387,35 @@ export default function DashboardScreen() {
           emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
         }
       });
+      console.log("📊 Emotion counts:", emotionCounts);
       const topEmotionEntry = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0];
       setTopEmotion(topEmotionEntry[0]);
+      console.log("📊 Top emotion set to:", topEmotionEntry[0]);
     } else {
       setTopEmotion("Unknown");
+      console.log("📊 No emotions found, setting to Unknown");
     }
 
-    // Generate recommendation based on score
-    if (normalizedTodayScore < 40) {
+    // Generate recommendation based on score (adjusted for EXTREME scaling)
+    if (normalizedTodayScore < 35) {
       setRecommendation(
-        "Your emotional wellness could use some support. Try taking a short walk, practicing deep breathing, or reaching out to a friend."
+        "💙 Take care of yourself today. Reach out to a friend, take a calming walk, or try some deep breathing exercises. You've got this."
       );
-    } else if (normalizedTodayScore < 70) {
+    } else if (normalizedTodayScore < 50) {
       setRecommendation(
-        "You're doing okay! Consider doing something you enjoy today - listen to music, read a book, or practice gratitude."
+        "🌤️ Your mood could use a boost. Try doing something you enjoy - uplifting music, fresh air, or practicing gratitude can help."
+      );
+    } else if (normalizedTodayScore < 65) {
+      setRecommendation(
+        "✨ You're doing well! Keep building momentum with journaling, connecting with friends, or enjoying a favorite hobby."
+      );
+    } else if (normalizedTodayScore < 80) {
+      setRecommendation(
+        "🌟 You're feeling great! Keep it up by sharing your positive energy, trying something creative, or helping others."
       );
     } else {
       setRecommendation(
-        "You're doing great! Keep up the positive momentum. Share your joy with others or try something new today."
+        "🎉 You're absolutely thriving! Your energy is contagious. Celebrate this moment and inspire others with your joy!"
       );
     }
   };
@@ -410,6 +462,32 @@ export default function DashboardScreen() {
   const handleCloseModal = () => {
     setIsModalVisible(false);
     setSelectedVideo(null);
+  };
+
+  const handleSaveNote = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to save notes");
+      return;
+    }
+
+    if (journalText.trim().length === 0) {
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "notes"), {
+        userId: user.uid,
+        content: journalText.trim(),
+        timestamp: new Date(),
+      });
+
+      Alert.alert("Success", "Note saved!");
+      setJournalText(""); // Clear the input
+    } catch (error) {
+      console.error("Error saving note:", error);
+      Alert.alert("Error", "Failed to save note");
+    }
   };
 
   const formatDate = (timestamp: Timestamp) => {
@@ -462,46 +540,41 @@ export default function DashboardScreen() {
         </View>
  
         {/* Journal Input */}
-        <TouchableOpacity style={styles.journalInputContainer}>
-          <TextInput
-            style={styles.journalInput}
-            placeholder="Tap here to reflect on your day..."
-            placeholderTextColor="#999"
-            multiline
-            value={journalText}
-            onChangeText={setJournalText}
-          />
-        </TouchableOpacity>
- 
-        {/* This Week's Snapshot */}
-        <View style={styles.snapshotSection}>
-          <Text style={styles.snapshotTitle}>This Week's Snapshot</Text>
-          <View style={styles.snapshotRow}>
-            <View style={styles.snapshotItem}>
-              <SmileyIcon />
-              <Text style={styles.snapshotText}>
-                Top Emotion: {topEmotion}
-              </Text>
-            </View>
-            <View style={styles.snapshotItem}>
-              <CheckIcon />
-              <Text style={styles.snapshotText}>
-                7-Day Average: {weeklyAverage}
-              </Text>
-            </View>
+        <View style={styles.journalSection}>
+          <View style={styles.journalHeader}>
+            <Text style={styles.journalTitle}>Daily Journal</Text>
+            <TouchableOpacity onPress={() => router.push("/notes" as any)}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.journalInputContainer}>
+            <TextInput
+              style={styles.journalInput}
+              placeholder="Tap here to reflect on your day..."
+              placeholderTextColor="#666"
+              multiline
+              value={journalText}
+              onChangeText={setJournalText}
+            />
+            {journalText.trim().length > 0 && (
+              <TouchableOpacity 
+                style={styles.saveNoteButton} 
+                onPress={handleSaveNote}
+              >
+                <Text style={styles.saveNoteButtonText}>Save Note</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-
+ 
         {/* Recent Recordings */}
         {recordings.length > 0 && (
           <View style={styles.recordingsSection}>
             <View style={styles.recordingsSectionHeader}>
               <Text style={styles.recordingsTitle}>Recent Recordings</Text>
-              {recordings.length > 3 && (
-                <TouchableOpacity onPress={() => router.push("/recordings" as any)}>
-                  <Text style={styles.viewAllText}>View All</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity onPress={() => router.push("/recordings" as any)}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
             </View>
             {recordings.slice(0, 3).map((recording) => (
               <TouchableOpacity
@@ -609,19 +682,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-    width: 180,
-    paddingBottom: 40,
+    width: 220,
+    height: 220,
   },
   scoreNumber: {
-    fontSize: 56,
+    fontSize: 54,
     fontWeight: "700",
     color: "#1a1a1a",
   },
   scoreChange: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#666",
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
+    maxWidth: 160,
+    lineHeight: 14,
   },
   recommendationCard: {
     backgroundColor: "#ffffff",
@@ -648,42 +723,44 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
     lineHeight: 22,
   },
-  journalInputContainer: {
+  journalSection: {
     marginHorizontal: 32,
     marginBottom: 32,
+  },
+  journalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  journalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  journalInputContainer: {
+    marginBottom: 0,
   },
   journalInput: {
     backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 20,
     fontSize: 15,
-    color: "#999",
-    minHeight: 60,
+    color: "#1a1a1a",
+    minHeight: 100,
     textAlignVertical: "top",
   },
-  snapshotSection: {
-    marginHorizontal: 32,
-    marginBottom: 20,
-  },
-  snapshotTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    marginBottom: 16,
-  },
-  snapshotRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  snapshotItem: {
-    flexDirection: "row",
+  saveNoteButton: {
+    backgroundColor: "#1a1a1a",
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: "center",
-    gap: 8,
+    marginTop: 12,
   },
-  snapshotText: {
-    fontSize: 14,
-    color: "#1a1a1a",
+  saveNoteButtonText: {
+    color: "#faefde",
+    fontSize: 16,
+    fontWeight: "600",
   },
   recordingsSection: {
     marginHorizontal: 32,

@@ -275,11 +275,20 @@ export default function RecordingsScreen() {
                         style={[
                           styles.sentimentFill,
                           {
-                            width: `${Math.max(0, Math.min(100, (recording.sentimentScore + 1) * 50))}%`,
+                            width: `${(() => {
+                              const score = recording.sentimentScore || 0;
+                              let dramaticScore;
+                              if (score >= 0) {
+                                dramaticScore = 50 + (Math.pow(score, 0.4) * 48);
+                              } else {
+                                dramaticScore = 50 - (Math.pow(Math.abs(score), 0.4) * 48);
+                              }
+                              return Math.max(2, Math.min(98, dramaticScore));
+                            })()}%`,
                             backgroundColor:
                               recording.sentimentScore < -0.2
                                 ? "#FF5252"
-                                : recording.sentimentScore < 0.4
+                                : recording.sentimentScore < 0.2
                                 ? "#FFC107"
                                 : "#4CAF50",
                           },
