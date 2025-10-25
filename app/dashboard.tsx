@@ -5,7 +5,9 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -221,18 +223,18 @@ function CircularProgress({
   const circumference = radius * 2 * Math.PI;
   const progress = (score / 100) * circumference;
  
-  // Determine color based on score (adjusted for EXTREME dramatic scaling)
+  // Determine color based on score (0-100 linear scale)
   let color = "#4CAF50"; // Green
-  if (score < 35) {
-    color = "#FF5252"; // Red - Negative sentiment
-  } else if (score < 50) {
-    color = "#FF9800"; // Orange - Below neutral
-  } else if (score < 65) {
-    color = "#FFC107"; // Yellow - Slightly positive
-  } else if (score < 80) {
-    color = "#4CAF50"; // Green - Positive
+  if (score < 30) {
+    color = "#FF5252"; // Red - Very negative (0-29)
+  } else if (score < 45) {
+    color = "#FF9800"; // Orange - Negative (30-44)
+  } else if (score < 55) {
+    color = "#FFC107"; // Yellow - Neutral (45-54)
+  } else if (score < 70) {
+    color = "#4CAF50"; // Green - Positive (55-69)
   } else {
-    color = "#2E7D32"; // Dark green - Very positive
+    color = "#2E7D32"; // Dark green - Very positive (70+)
   }
  
   return (
@@ -320,53 +322,32 @@ export default function DashboardScreen() {
       return recDate >= weekStart;
     });
 
-    // Calculate today's score with SUPER DRAMATIC scaling for demo
-    // Using CUBIC scaling to massively amplify differences
+    // Calculate today's score with simple linear conversion
+    // Backend sentiment score is -1 to +1, convert to 0-100
     const todayAvg = todayRecordings.length > 0
       ? todayRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / todayRecordings.length
       : 0;
     
-    // EXTREME DRAMATIC SCALING - Small sentiment changes = HUGE score changes
-    let dramaticScore;
-    if (todayAvg >= 0) {
-      // Positive: Use cubic scaling to explode upward
-      // Even 0.3 sentiment will show as 70+ score
-      dramaticScore = 50 + (Math.pow(todayAvg, 0.4) * 48);
-    } else {
-      // Negative: Use cubic scaling to plummet downward
-      // Even -0.3 sentiment will show as 30- score
-      dramaticScore = 50 - (Math.pow(Math.abs(todayAvg), 0.4) * 48);
-    }
-    const normalizedTodayScore = Math.round(Math.max(2, Math.min(98, dramaticScore)));
-    setTodayScore(normalizedTodayScore);
+    // Simple linear conversion: -1 to +1 becomes 0 to 100
+    const todayScore = Math.round(((todayAvg + 1) / 2) * 100);
+    setTodayScore(Math.max(0, Math.min(100, todayScore)));
 
-    // Calculate yesterday's score with same dramatic scaling
+    // Calculate yesterday's score
     const yesterdayAvg = yesterdayRecordings.length > 0
       ? yesterdayRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / yesterdayRecordings.length
       : 0;
     
-    let dramaticYesterdayScore;
-    if (yesterdayAvg >= 0) {
-      dramaticYesterdayScore = 50 + (Math.pow(yesterdayAvg, 0.4) * 48);
-    } else {
-      dramaticYesterdayScore = 50 - (Math.pow(Math.abs(yesterdayAvg), 0.4) * 48);
-    }
-    const normalizedYesterdayScore = Math.round(Math.max(2, Math.min(98, dramaticYesterdayScore)));
-    setScoreChange(normalizedTodayScore - normalizedYesterdayScore);
+    const yesterdayScore = Math.round(((yesterdayAvg + 1) / 2) * 100);
+    const normalizedYesterdayScore = Math.max(0, Math.min(100, yesterdayScore));
+    setScoreChange(todayScore - normalizedYesterdayScore);
 
-    // Calculate weekly average with dramatic scaling
+    // Calculate weekly average
     const weekAvg = weekRecordings.length > 0
       ? weekRecordings.reduce((sum, r) => sum + (r.sentimentScore || 0), 0) / weekRecordings.length
       : 0;
     
-    let dramaticWeekScore;
-    if (weekAvg >= 0) {
-      dramaticWeekScore = 50 + (Math.pow(weekAvg, 0.4) * 48);
-    } else {
-      dramaticWeekScore = 50 - (Math.pow(Math.abs(weekAvg), 0.4) * 48);
-    }
-    const normalizedWeekScore = Math.round(Math.max(2, Math.min(98, dramaticWeekScore)));
-    setWeeklyAverage(normalizedWeekScore);
+    const weekScore = Math.round(((weekAvg + 1) / 2) * 100);
+    setWeeklyAverage(Math.max(0, Math.min(100, weekScore)));
 
     // Find most common emotion this week
     const emotions = weekRecordings
@@ -396,20 +377,20 @@ export default function DashboardScreen() {
       console.log("📊 No emotions found, setting to Unknown");
     }
 
-    // Generate recommendation based on score (adjusted for EXTREME scaling)
-    if (normalizedTodayScore < 35) {
+    // Generate recommendation based on score (0-100 linear scale)
+    if (todayScore < 30) {
       setRecommendation(
         "💙 Take care of yourself today. Reach out to a friend, take a calming walk, or try some deep breathing exercises. You've got this."
       );
-    } else if (normalizedTodayScore < 50) {
+    } else if (todayScore < 45) {
       setRecommendation(
         "🌤️ Your mood could use a boost. Try doing something you enjoy - uplifting music, fresh air, or practicing gratitude can help."
       );
-    } else if (normalizedTodayScore < 65) {
+    } else if (todayScore < 55) {
       setRecommendation(
         "✨ You're doing well! Keep building momentum with journaling, connecting with friends, or enjoying a favorite hobby."
       );
-    } else if (normalizedTodayScore < 80) {
+    } else if (todayScore < 70) {
       setRecommendation(
         "🌟 You're feeling great! Keep it up by sharing your positive energy, trying something creative, or helping others."
       );
@@ -503,11 +484,16 @@ export default function DashboardScreen() {
   };
  
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <Text style={styles.pageTitle}>Your Progress Today</Text>
@@ -645,7 +631,7 @@ export default function DashboardScreen() {
           <ProfileIcon active={activeTab === "profile"} />
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
  

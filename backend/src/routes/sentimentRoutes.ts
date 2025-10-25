@@ -103,6 +103,8 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
  
     // compute overall sentiment score (numeric)
     // POSITIVE = +1, NEUTRAL = 0, NEGATIVE = -1, weighted average
+    console.log("📊 Sentiment summary before calculation:", sentimentSummary);
+    
     const sentimentScore =
       sentimentSummary.reduce((sum, item) => {
         const weight =
@@ -111,8 +113,12 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
             : item.sentiment === "NEGATIVE"
             ? -1
             : 0;
-        return sum + weight * parseFloat(item.percentage);
+        const percentage = parseFloat(item.percentage);
+        console.log(`  - ${item.sentiment}: weight=${weight}, percentage=${percentage}, contribution=${weight * percentage}`);
+        return sum + weight * percentage;
       }, 0) / 100;
+    
+    console.log("🎯 Calculated sentiment score:", sentimentScore);
 
     // Determine dominant emotion based on highest weighted score
     const dominantSentiment = Object.entries(weightedScores).reduce(

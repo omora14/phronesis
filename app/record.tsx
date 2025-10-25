@@ -2,8 +2,8 @@ import { Audio } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { addDoc, collection } from "firebase/firestore";
-import React, { useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { auth, db } from "../firebase";
 
@@ -98,6 +98,19 @@ export default function RecordScreen() {
   const [mode, setMode] = useState<"video" | "audio">("video");
   const [isProcessing, setIsProcessing] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [sentimentResults, setSentimentResults] = useState<{
+    score: number;
+    emotion: string;
+  } | null>(null);
+
+  // Debug: Monitor when showResults changes
+  useEffect(() => {
+    console.log("🔔 showResults changed to:", showResults);
+    if (showResults && sentimentResults) {
+      console.log("🎯 Modal should be visible with results:", sentimentResults);
+    }
+  }, [showResults, sentimentResults]);
 
   const handleClose = () => {
     router.push("/dashboard" as any);
@@ -125,18 +138,32 @@ export default function RecordScreen() {
       formData.append("uid", user.uid);
 
       try {
+        console.log("🚀 Sending request to backend...");
         const res = await fetch("http://10.37.184.147:5000/api/sentiment", {
           method: "POST",
           body: formData,
           headers: { "Content-Type": "multipart/form-data" },
         });
+        
+        console.log("📡 Response status:", res.status);
+        
+        if (!res.ok) {
+          console.error("❌ Backend returned error status:", res.status);
+          const errorText = await res.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Backend error: ${res.status}`);
+        }
+        
         const result = await res.json();
-        console.log("Sentiment analysis result:", result);
+        console.log("✅ Full sentiment analysis result:", JSON.stringify(result, null, 2));
         console.log("🎭 Emotion from backend:", result.emotion);
         console.log("📊 Sentiment score from backend:", result.sentimentScore);
+        console.log("📝 Sentiment score type:", typeof result.sentimentScore);
+        
         sentimentData = result;
       } catch (apiError) {
-        console.warn("Backend upload failed, saving locally only:", apiError);
+        console.error("❌ Backend upload failed:", apiError);
+        console.error("Error details:", apiError);
       }
 
       // Save metadata and sentiment data to Firestore
@@ -161,21 +188,66 @@ export default function RecordScreen() {
       
       await addDoc(collection(db, "recordings"), recordingData);
 
-      Alert.alert(
-        "Success",
-        "Your recording has been saved!",
-        [
-          {
-            text: "OK",
-            onPress: () => router.push("/dashboard" as any),
-          },
-        ]
-      );
+      console.log("📊 Checking sentiment data:", {
+        hasSentimentData: !!sentimentData,
+        sentimentScore: sentimentData?.sentimentScore,
+        emotion: sentimentData?.emotion,
+        fullSentimentData: sentimentData,
+      });
+
+      // Turn off processing first
+      setIsProcessing(false);
+
+      // Show results modal with sentiment score from API
+      if (sentimentData && typeof sentimentData.sentimentScore === 'number' && sentimentData.emotion) {
+        console.log("✅ Showing results modal with API data!");
+        
+        // Convert sentiment score from -1 to +1 range to 0-100 scale
+        // Backend returns: -1 (very negative) to +1 (very positive)
+        // We want: 0-100 for display
+        const rawScore = sentimentData.sentimentScore;
+        console.log("🔢 Raw score from backend:", rawScore);
+        
+        // Simple linear conversion: -1 to +1 becomes 0 to 100
+        let displayScore = ((rawScore + 1) / 2) * 100;
+        
+        // Clamp between 0 and 100
+        displayScore = Math.max(0, Math.min(100, displayScore));
+        
+        console.log("📈 Converted display score:", displayScore, "(out of 100)");
+        console.log("📊 Display as X/10:", (displayScore / 10).toFixed(1));
+        
+        // Set results and show modal
+        setSentimentResults({
+          score: displayScore,
+          emotion: sentimentData.emotion,
+        });
+        
+        // Use setTimeout to ensure state is set before showing modal
+        setTimeout(() => {
+          console.log("🚀 Setting showResults to true NOW");
+          setShowResults(true);
+        }, 100);
+      } else {
+        console.log("⚠️ No valid sentiment data from backend");
+        console.log("Sentiment data received:", sentimentData);
+        
+        // Show alert instead of modal if backend failed
+        Alert.alert(
+          "Recording Saved",
+          "Your recording has been saved, but sentiment analysis is unavailable.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.push("/dashboard" as any),
+            },
+          ]
+        );
+      }
     } catch (error) {
       console.error("Error saving recording:", error);
-      Alert.alert("Error", "Failed to save recording");
-    } finally {
       setIsProcessing(false);
+      Alert.alert("Error", "Failed to save recording");
     }
   };
 
@@ -344,8 +416,63 @@ export default function RecordScreen() {
           <Text style={styles.recordingText}>Recording audio...</Text>
         </View>
       )}
+
+      {/* Results Modal */}
+      <Modal
+        visible={showResults}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowResults(false);
+          router.push("/dashboard" as any);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Your Score</Text>
+            
+            {sentimentResults && (
+              <>
+                {/* Score Display */}
+                <Text style={styles.scoreDisplay}>
+                  {(sentimentResults.score / 10).toFixed(1)}/10
+                </Text>
+
+                {/* Emotion Badge */}
+                <View style={styles.emotionBadge}>
+                  <Text style={styles.emotionText}>
+                    {getEmotionEmoji(sentimentResults.emotion)} {sentimentResults.emotion}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {/* Continue Button */}
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={() => {
+                setShowResults(false);
+                router.push("/dashboard" as any);
+              }}
+            >
+              <Text style={styles.continueButtonText}>View Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
+}
+
+// Helper function to get emotion emoji
+function getEmotionEmoji(emotion: string): string {
+  const emojiMap: Record<string, string> = {
+    Happy: "😊",
+    Sad: "😔",
+    Calm: "😌",
+    Neutral: "😐",
+  };
+  return emojiMap[emotion] || "😐";
 }
 
 const styles = StyleSheet.create({
@@ -484,6 +611,84 @@ const styles = StyleSheet.create({
   recordingText: {
     fontSize: 16,
     color: "#fff",
+    fontWeight: "600",
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#faefde",
+    borderRadius: 24,
+    padding: 40,
+    alignItems: "center",
+    width: "85%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  scoreDisplay: {
+    fontSize: 72,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  emotionBadge: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emotionText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1a1a1a",
+  },
+  continueButton: {
+    backgroundColor: "#1a1a1a",
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  continueButtonText: {
+    color: "#faefde",
+    fontSize: 18,
     fontWeight: "600",
   },
 });
